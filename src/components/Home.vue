@@ -1,7 +1,9 @@
 <template>
-  <div class="container">
-    <h1>欢迎访问学生管理系统</h1>
-    <button @click="goToMain">主页</button>
+  <div class="flex flex-col items-center justify-center h-full text-center">
+    <h1 class="text-2xl">欢迎访问学生管理系统</h1>
+    <button @click="goToMain" class="mt-5 px-4 py-2 text-lg border-2 border-transparent focus:outline-none focus:border-blue-500 hover:bg-blue-500 hover:text-white transition-all duration-300">
+      主页
+    </button>
   </div>
 </template>
 
@@ -16,22 +18,5 @@ function goToMain() {
 </script>
 
 <style scoped>
-.container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  text-align: center;
-}
 
-h1 {
-  font-size: 2em;
-}
-
-button {
-  margin-top: 20px;
-  padding: 10px 20px;
-  font-size: 1em;
-}
 </style>
