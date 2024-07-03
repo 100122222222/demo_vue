@@ -1,263 +1,248 @@
-<!--
- * @Description: 
- * @Version: 1.0
- * @Autor: Li Cheng
- * @Date: 2024-06-24 14:34:13
- * @LastEditors: Li Cheng
- * @LastEditTime: 2024-06-24 15:01:55
--->
 <template>
   <div class="list_comp">
-    <h1>同学列表</h1>
+    <a-typography-title class="title" :level="2">同学列表</a-typography-title>
     <div class="tool_tab">
-      <button class="add_btn" type="primary" @click="showFlag=true">新增</button>
+      <a-button class="add_btn" style="margin-bottom: 8px" type="primary" @click="addUser">新增</a-button>
     </div>
-    <ul>
-      <li>
-        <span class="num">序号</span>
-        <span class="study_code">学号</span> 
-        <span class="name">姓名</span> 
-        <span class="age">年龄</span>
-        <div class="operation">操作</div>
-      </li>
-      <li v-for="(item, index) in userList" :key="item.id">
-        <span class="num">{{ index + 1 }}</span>
-        <span class="study_code">{{ item.id }}</span> 
-        <span class="name">{{ item.userName }}</span> 
-        <span class="age">{{ item.age }}</span>
-        <div class="operation">
-          <button @click="deleteUser(index)">删除</button>
-          <button @click="editUser(index)">编辑</button>
-          <button @click="getYourName(item.id)">问名字</button>
-        </div>
-      </li>
-    </ul>
-    <div class="pop_blank" v-if="showFlag">
-      <h3>{{isEdit ? '编辑同学' : '新增同学'}}</h3>
-      <div class="blank_body">
-        <div class="blank_item">
-          <span>学号</span>
-          <input type="text" v-model="studyNum">
-        </div>
-        <div class="blank_item">
-          <span>姓名</span>
-          <input type="text" v-model="name">
-        </div>
-        <div class="blank_item">
-          <span>年龄</span>
-          <input type="text" v-model="age">
-        </div>
-      </div>
-      <div class="footer">
-        <button type="primary" @click="submitFn">确定</button>
-        <button type="primary" @click="showFlag=flase">取消</button>
-      </div>
-    </div>
+    <a-table class="list" bordered :columns="columns" :dataSource="userList">
+      <template #bodyCell="{ column, record, index }">
+        <template v-if="column.key === 'index'">
+        <a>{{ index + 1 }}</a>
+      </template>
+        <template v-else-if="column.key === 'operation'">
+        <!-- <span class="flex grow justify-around"> -->
+        <a-space>
+          <a-button type="primary" block @click="editUser(index)">编辑</a-button>
+          <a-button danger block @click="deleteUser(index)">删除</a-button>         
+          <a-button block @click="getYourName(record.id)">点名</a-button>
+        </a-space>
+        <!-- </span> -->
+      </template>
+    </template>
+    </a-table>
+    <a-modal v-model:open="showFlag" @cancel="cancelFn" @ok="submitFn" okText="确定" cancelText="取消"
+            :title="isEdit ? '编辑同学' : '新增同学'">
+            <a-input v-model:value="studyNum" placeholder="请输入学号" style="width: 450px;margin: 10px;"/>
+            <a-input v-model:value="name" placeholder="请输入姓名" style="width: 450px;margin: 10px;">
+                <template #prefix>
+                    <user-outlined />
+                </template>
+                <template #suffix>
+                    <a-tooltip title="Extra information">
+                        <info-circle-outlined style="color: rgba(0, 0, 0, 0.45)" />
+                    </a-tooltip>
+                </template>
+            </a-input>
+            <a-input-number  v-model:value="age" :min="1" :max="25" placeholder="请输入年龄" style="width: 450px;margin: 10px;">
+                <template #upIcon>
+                    <ArrowUpOutlined />
+                </template>
+                <template #downIcon>
+                    <ArrowDownOutlined />
+                </template>
+            </a-input-number>
+    </a-modal>
+    <div class="echart" id="mychart" style="width: auto;height: 400px;"></div>
   </div>
 </template>
 
-<script setup>0
-import { reactive, ref } from 'vue';
+<script setup>
+import { ref, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useUserStore } from '@/store/user';
-const userStore=useUserStore()
-const {username,userList} =storeToRefs(userStore)
-const {setUserList,setUserName} =userStore
-let showFlag=ref(false)
+import { UserOutlined, InfoCircleOutlined,ArrowUpOutlined,ArrowDownOutlined } from '@ant-design/icons-vue'
+const userStore = useUserStore();
+const { userList } = storeToRefs(userStore);
+import * as echarts from "echarts";
+
+let showFlag = ref(false);
 let isEdit = ref(false);
 let curIdx = ref(0);
-let name=ref("")
-let age=ref(0)
-let studyNum=ref(0)
-// let list = reactive(userList);
 
-const deleteUser = index => {
+let studyNum = ref();
+let name = ref('');
+let age = ref();
+
+let myChart;
+
+const initEcharts = () => {
+  const option = {
+    xAxis: {
+      type: 'category',
+      data: userList.value.map(user => user.userName)
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [{
+      data: userList.value.map(user => user.age),
+      type: 'bar'
+    }]
+  };
+  myChart.setOption(option);
+};
+
+onMounted(() => {
+  myChart = echarts.init(document.getElementById('mychart'));
+  initEcharts();
+  window.addEventListener('resize', () => {
+    myChart.resize();
+  });
+});
+
+watch(userList, () => {
+  initEcharts();
+}, { deep: true });
+
+const deleteUser = (index) => {
   userStore.userList.splice(index, 1);
 };
 
-const editUser = index => {
-  isEdit.value = true;
-  curIdx.value = index;
-  const item = userStore.userList[index];
-  // item.age = 22;
-  // todo: 拿到的item信息填入弹窗对应的输入框里
-  studyNum.value = item.id;
-  name.value = item.userName;
-  age.value = item.age;
-  showFlag.value = true;
+const addUser = () => {
+    isEdit.value = false;
+    showFlag.value = true;
 };
-const checkList=(code)=>{
-  for(let index=0;index<userStore.userList.length;index++){
-    const element=userStore.userList[index]
-    if(Number(code)===element.id){
-      return true
+
+const editUser = (index) => {
+    isEdit.value = true;
+    curIdx.value = index;
+    const item = userStore.userList[index];
+    studyNum.value = item.id;
+    name.value = item.userName;
+    age.value = item.age;
+    showFlag.value = true;
+};
+
+const checkList = (code) => {
+    for (let index = 0; index < userStore.userList.length; index++) {
+        const element = userStore.userList[index];
+        if (Number(code) === element.id) {
+            return true;
+        }
     }
-  }
-  return false
-}
-const isNum=(val)=>{
-  let exg=/^\d+$/
-  if(!exg.test(val)){
-    return false
-  }
-  return true
-}
-const addNum2name=(name)=>{
-  // 将姓名后面追加最新编号
-  let total=0
-  userStore.userList.map(item=>{
-    if(item.userName.indexOf(name) !== -1){
-      let tempItem=item
-      let tempItemName=tempItem.userName.split('')
-      tempItemName.splice(0,name.length)
-      let checkItem=isNum(tempItemName.join(''))
-      if(tempItemName.length===0 || checkItem){
-        total++
-      }
+    return false;
+};
+
+const addNum2name = (name) => {
+    // 将姓名后面追加最新编号
+    let total = 0;
+    userStore.userList.map((item) => {
+        if (item.userName.indexOf(name) !== -1) {
+            let tempItem = item;
+            let tempItemName = tempItem.userName.split('');
+            tempItemName.splice(0, name.length);
+            let checkItem = isNum(tempItemName.join(''));
+            if (tempItemName.length === 0 || checkItem) {
+                total++;
+            }
+        }
+    });
+    return `${name}${total === 0 ? '' : total}`;
+};
+
+const isNum = (val) => {
+    let exg = /^\d+$/;
+    if (!exg.test(val)) {
+        return false;
     }
-  })
-  return `${name}${total=== 0 ? '' : total}`
-}
+    return true;
+};
+
 const submitFn = () => {
-  // 输入内容校验
-  let studyNumCheck=isNum(studyNum.value)
-  if(!studyNumCheck){
-    alert("学号必须是纯数字")
-    return
-  }
-  // 编辑
-  let tempName=addNum2name(name.value)
-  if(isEdit.value){
-    userStore.userList.splice(curIdx.value,1)
-    tempName=name.value
-  }
-  let isStudyNumExist=checkList(studyNum.value)
-  if(isStudyNumExist){
-    alert("学号已存在")
-    return
-  }
-  // 新增
-  userStore.userList.unshift({
-    id: studyNum.value,
-    userName: tempName,
-    age: age.value
-  });
-  showFlag.value = false;
-  // alert(`新增的同学学号是：${studyNum.value};姓名是：${name.value};年龄是：${year.value}`);
+    // 输入内容校验
+    let studyNumCheck = isNum(studyNum.value);
+    if (!studyNumCheck) {
+        alert('学号需要为纯数字');
+        return;
+    }
+    let tempName = addNum2name(name.value);
+    if (isEdit.value) {
+        // 编辑
+        userStore.userList.splice(curIdx.value, 1);
+        tempName = name.value;
+    }
+    let isStudyNumExist = checkList(studyNum.value);
+    if (isStudyNumExist) {
+        alert('学号已存在');
+        return;
+    }
+    userStore.userList.unshift({
+        id: studyNum.value,
+        userName: tempName,
+        age: age.value,
+    });
+    showFlag.value = false;
+    studyNum.value = 0;
+    name.value = '';
+    age.value = 0;
+};
+
+const cancelFn = () => {
+    showFlag.value = false;
+    studyNum.value = 0;
+    name.value = '';
+    age.value = 0;
 }
-const getYourName = id => {
-  const student = list.find(item => item.id === id);
+const getYourName = (id) => {
+  const student = userStore.userList.find(item => item.id === id);
   alert(student.userName);
 };
+
+const columns=[
+  {
+    title: '序号',
+    dataIndex: 'index',
+    key: 'index',
+    align:'center'
+  },
+  {
+    title: '学号',
+    dataIndex: 'id',
+    key: 'id',  
+    align:'center'
+  },
+  {
+    title: '姓名',
+    dataIndex: 'userName',
+    key: 'userName',
+    align:'center'
+  },
+  {
+    title: '年龄',
+    dataIndex: 'age',
+    key: 'age',
+    align:'center'
+  },
+  {
+    title: '操作',
+    // dataIndex: 'operation',
+    key: 'operation',
+    align:'center'
+  },
+]
 </script>
 
 <style lang="less" scoped>
 .list_comp{
   text-align: left;
-}
-h1{
-  text-align: center;
+  .title{
+    text-align: center;
+    margin-top:20px;
+  }
 }
 .tool_tab{
   display: flex;
   justify-content: flex-end;
   .add_btn{
     background-color: #efefef;
+    color: #000000;
     margin-right: 24px;
     width: 90px;
   }
 }
-ul{
+.list{
   padding-left: 0;
   padding: 0 24px;
   text-align: center;
-}
-.pop_blank{
-  position: absolute;
-  background-color: #ffffff;
-  border: 1px solid #919191;
-  border-radius: 8px;
-  width: 50vh;
-  height: 40vh;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%,-50%);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  h3{
-    text-align: center;
-  }
-  .blank_body{
-    flex-grow: 1;
-    flex-shrink: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    .blank_item{
-    height: 48px;
-    font-size: 18px;
-    display: flex;
-    span{
-      // margin-right: 12px;
-      width: 48px;
-    }
-    input{
-      height: 24px;
-      flex-grow: 1;
-      flex-shrink: 1;
-    }
-  }
-  }
-  .footer{
-    // position: absolute;
-    bottom: 24px;
-    display: flex;
-    justify-content: flex-end;
-    width: 100%;
-    button{
-      background-color: #df5c5c;
-      color: #ffffff;
-    }
-    & > button:nth-child(1){
-      margin-right: 12px;
-      background-color: rgb(91, 153, 239);
-      color: #ffffff;
-    }
-  }
-}
-li{
-  list-style: none;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  height: 64px;
-  border-bottom: 2px solid #efefef;
-  &:nth-child(1){
-    background-color: #000000;
-    color: #efefef;
-  }
-  .num{
-    width: 18%;
-  }
-  .name{
-    width: 18%;
-  }
-  .study_code{
-    width: 18%;
-  }
-  .age{
-    width: 18%;
-  }
-  .operation{
-    flex-grow: 1;
-    display: flex;
-    justify-content: space-around;
-    & > button{
-      background-color: rgb(91, 153, 239);
-      color: #efefef;
-      width: 90px;
-    }
-  }
 }
 </style>
